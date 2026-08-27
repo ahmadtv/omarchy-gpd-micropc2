@@ -136,7 +136,58 @@ pairing keys to the initramfs is possible but is intentionally not recommended
 for this setup because it complicates early boot and exposes additional pairing
 material outside the encrypted root filesystem.
 
-## 6. Natural scrolling for mouse and touchpad
+## 6. Correct the SDDM logout/login screen orientation
+
+SDDM runs its own minimal Hyprland compositor and does not inherit the user's
+`~/.config/hypr/monitors.lua`. Create `/etc/sddm/hyprland.lua`:
+
+```lua
+-- Local Hyprland configuration for the SDDM Wayland greeter.
+-- The GPD MicroPC 2 panel is portrait-native, so rotate it into landscape.
+hl.monitor({
+  output = "DSI-1",
+  mode = "1080x1920@60",
+  position = "0x0",
+  scale = 1.6,
+  transform = 3,
+})
+
+hl.config({
+  misc = {
+    disable_hyprland_logo = true,
+    disable_splash_rendering = true,
+    force_default_wallpaper = 0,
+  },
+
+  animations = {
+    enabled = false,
+  },
+})
+```
+
+Point SDDM at the local configuration in
+`/etc/sddm.conf.d/10-wayland.conf`:
+
+```ini
+[General]
+DisplayServer=wayland
+
+[Wayland]
+CompositorCommand=start-hyprland -- --config /etc/sddm/hyprland.lua
+```
+
+Validate it without ending the current graphical session:
+
+```bash
+Hyprland --verify-config --config /etc/sddm/hyprland.lua
+```
+
+The result should be `config ok`. The change takes effect on the next logout;
+restarting SDDM directly will terminate the active graphical session. Keeping
+this override under `/etc` prevents an Omarchy package update from overwriting
+it.
+
+## 7. Natural scrolling for mouse and touchpad
 
 The following user override is present in `~/.config/hypr/input.lua`:
 
@@ -153,7 +204,7 @@ hl.config({
 
 This reverses both the external mouse wheel and the internal touchpad.
 
-## 7. Fit the Omarchy screensaver on the 7-inch display
+## 8. Fit the Omarchy screensaver on the 7-inch display
 
 The stock screensaver uses an 81-column logo and an 18-point Foot font, which
 clips at the display edges. A user-owned override uses a 13-point font.
@@ -182,7 +233,7 @@ PATH=${HOME}/.local/bin:${PATH}
 
 A logout/login is required after changing the graphical-session PATH.
 
-## 8. Omarchy display text size
+## 9. Omarchy display text size
 
 Do not manually edit the normal Foot font while using Omarchy's Display panel.
 The panel intentionally controls shell, GTK, and terminal text together.
@@ -207,7 +258,7 @@ At the time this guide was written, the user had selected `20px`, which maps to
 a 15-point terminal font. Existing Foot windows cannot reload their font; close
 and reopen Foot after moving the text-size control.
 
-## 9. Logitech MX Keys Mini modifier layout
+## 10. Logitech MX Keys Mini modifier layout
 
 Hold `Fn + O` for three seconds to switch the keyboard to Mac mode:
 
@@ -222,7 +273,7 @@ and cut shortcuts. Super+Backspace is not macOS-style line deletion: Omarchy
 uses it to toggle window transparency. Option+Backspace deletes the previous
 word in applications that support the standard Alt+Backspace behavior.
 
-## 10. Dictation and microphone diagnosis
+## 11. Dictation and microphone diagnosis
 
 Voxtype is configured in `~/.config/voxtype/config.toml` with:
 
@@ -244,7 +295,7 @@ No microphone gain change was applied. A reasonable diagnostic starting point
 is 0 dB internal boost, 70–80% hardware capture, and about 70% PipeWire input.
 For better English recognition, consider `small.en` after correcting the audio.
 
-## 11. Automatic rotation — installed but not working
+## 12. Automatic rotation — installed but not working
 
 `iio-sensor-proxy` was installed, and the accelerometer appears as `mxc4005`.
 The service reports an initial `right-up` orientation, but it did not emit
@@ -273,7 +324,7 @@ Recommended next diagnostics:
    `iio-sensor-proxy` polling/permission path.
 5. If raw values remain fixed, investigate BIOS or the `mxc4005` kernel driver.
 
-## 12. Tablet features audit
+## 13. Tablet features audit
 
 ### Middle-button scrolling
 
@@ -301,7 +352,7 @@ omarchy setup security fingerprint
 
 Do not manually modify PAM before the hardware is detected.
 
-## 13. Important backups
+## 14. Important backups
 
 The setup created these system backups:
 
