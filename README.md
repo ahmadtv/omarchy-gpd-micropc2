@@ -89,7 +89,54 @@ Confirm that `interface_rotation: 90` remains in `/boot/limine.conf` after the
 update. A backup was created as
 `/boot/limine.conf.bak-20260827-interface-rotation` on the original machine.
 
-## 4. Natural scrolling for mouse and touchpad
+## 4. Add Windows Boot Manager to Limine
+
+Run Limine's EFI scanner after installing another operating system:
+
+```bash
+sudo limine-scan
+```
+
+Select `Windows Boot Manager`, keep the suggested entry name, and verify the
+result:
+
+```bash
+sudo limine-entry-tool --tree 2
+```
+
+The scanner creates a persistent top-level EFI entry pointing to Microsoft's
+boot manager on the Windows EFI partition. On this machine it produced:
+
+```text
+Omarchy
+├─ linux
+└─ Snapshots
+Windows Boot Manager
+```
+
+## 5. Startup transition and Bluetooth keyboard
+
+The active kernel arguments correctly force the `DSI-1` panel orientation.
+However, a brief sideways frame can still appear immediately after entering
+the encrypted-disk password. This is the modeset handoff from Plymouth/kernel
+framebuffer rendering to Hyprland, which then applies `transform = 3`. The
+final desktop orientation is correct.
+
+The encrypted-disk password prompt runs before the root filesystem, BlueZ,
+and the user's Bluetooth pairing database are available. A Bluetooth keyboard
+therefore cannot be relied on for that prompt. Use one of these instead:
+
+- The MicroPC 2's built-in keyboard
+- A wired USB keyboard
+- A keyboard using a USB receiver that works as a firmware-level HID device
+
+After unlock, a paired, bonded, and trusted Bluetooth keyboard should reconnect
+automatically when `bluetooth.service` starts. Adding Bluetooth and personal
+pairing keys to the initramfs is possible but is intentionally not recommended
+for this setup because it complicates early boot and exposes additional pairing
+material outside the encrypted root filesystem.
+
+## 6. Natural scrolling for mouse and touchpad
 
 The following user override is present in `~/.config/hypr/input.lua`:
 
@@ -106,7 +153,7 @@ hl.config({
 
 This reverses both the external mouse wheel and the internal touchpad.
 
-## 5. Fit the Omarchy screensaver on the 7-inch display
+## 7. Fit the Omarchy screensaver on the 7-inch display
 
 The stock screensaver uses an 81-column logo and an 18-point Foot font, which
 clips at the display edges. A user-owned override uses a 13-point font.
@@ -135,7 +182,7 @@ PATH=${HOME}/.local/bin:${PATH}
 
 A logout/login is required after changing the graphical-session PATH.
 
-## 6. Omarchy display text size
+## 8. Omarchy display text size
 
 Do not manually edit the normal Foot font while using Omarchy's Display panel.
 The panel intentionally controls shell, GTK, and terminal text together.
@@ -160,7 +207,7 @@ At the time this guide was written, the user had selected `20px`, which maps to
 a 15-point terminal font. Existing Foot windows cannot reload their font; close
 and reopen Foot after moving the text-size control.
 
-## 7. Logitech MX Keys Mini modifier layout
+## 9. Logitech MX Keys Mini modifier layout
 
 Hold `Fn + O` for three seconds to switch the keyboard to Mac mode:
 
@@ -175,7 +222,7 @@ and cut shortcuts. Super+Backspace is not macOS-style line deletion: Omarchy
 uses it to toggle window transparency. Option+Backspace deletes the previous
 word in applications that support the standard Alt+Backspace behavior.
 
-## 8. Dictation and microphone diagnosis
+## 10. Dictation and microphone diagnosis
 
 Voxtype is configured in `~/.config/voxtype/config.toml` with:
 
@@ -197,7 +244,7 @@ No microphone gain change was applied. A reasonable diagnostic starting point
 is 0 dB internal boost, 70–80% hardware capture, and about 70% PipeWire input.
 For better English recognition, consider `small.en` after correcting the audio.
 
-## 9. Automatic rotation — installed but not working
+## 11. Automatic rotation — installed but not working
 
 `iio-sensor-proxy` was installed, and the accelerometer appears as `mxc4005`.
 The service reports an initial `right-up` orientation, but it did not emit
@@ -226,7 +273,7 @@ Recommended next diagnostics:
    `iio-sensor-proxy` polling/permission path.
 5. If raw values remain fixed, investigate BIOS or the `mxc4005` kernel driver.
 
-## 10. Tablet features audit
+## 12. Tablet features audit
 
 ### Middle-button scrolling
 
@@ -254,7 +301,7 @@ omarchy setup security fingerprint
 
 Do not manually modify PAM before the hardware is detected.
 
-## 11. Important backups
+## 13. Important backups
 
 The setup created these system backups:
 
