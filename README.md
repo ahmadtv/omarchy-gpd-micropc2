@@ -198,22 +198,50 @@ hl.config({
     touchpad = {
       natural_scroll = true,
     },
+    -- Match the portrait-native touchscreen to the rotated internal display.
+    touchdevice = {
+      output = "DSI-1",
+      transform = 3,
+    },
   },
 })
 ```
 
 This reverses both the external mouse wheel and the internal touchpad.
+Touchscreen scrolling remains direct/natural and is handled by each
+application. The explicit touchscreen output and transform make taps and
+swipes line up with the rotated internal display.
+
+If the `ILTP7807` touchscreen remains listed by `hyprctl devices` but stops
+responding after sleep, check the kernel log:
+
+```bash
+journalctl -b -k | rg -i ILTP7807
+```
+
+An I2C resume failure such as error `-121` can be recovered without rebooting
+by rebinding only the touchscreen driver:
+
+```bash
+sudo sh -c 'printf %s i2c-ILTP7807:00 > /sys/bus/i2c/drivers/i2c_hid_acpi/unbind'
+sudo sh -c 'printf %s i2c-ILTP7807:00 > /sys/bus/i2c/drivers/i2c_hid_acpi/bind'
+```
+
+This is a recovery, not the firmware-level solution. BIOS 2.17 or newer is
+still recommended for touchscreen reliability after resume.
 
 ## 8. Fit the Omarchy screensaver on the 7-inch display
 
 The stock screensaver uses an 81-column logo and an 18-point Foot font, which
-clips at the display edges. A user-owned override uses a 13-point font.
+clips at the display edges. At display scale `2`, the landscape workspace is
+only about 540 logical pixels wide, so the dedicated user override uses an
+8-point font.
 
 User config: `~/.config/foot/screensaver.ini`
 
 ```ini
 [main]
-font=JetBrainsMono Nerd Font:size=13
+font=JetBrainsMono Nerd Font:size=8
 pad=0x0
 
 [colors-dark]
@@ -222,16 +250,31 @@ foreground=ffffff
 ```
 
 The user launcher is `~/.local/bin/omarchy-launch-screensaver`. It follows the
-stock Omarchy launcher but starts Foot with the user config above.
+stock Omarchy launcher but starts Foot with the user config above. Do not edit
+the launcher under `/usr/share/omarchy`; package updates replace that copy.
 
-`~/.config/environment.d/10-local-bin.conf` ensures that graphical sessions
-prefer user-owned commands:
+Omarchy deliberately places `/usr/share/omarchy/bin` first in Hyprland's
+application `PATH`, so `environment.d` alone does not make this user launcher
+win. Add this final override near the bottom of
+`~/.config/hypr/hyprland.lua`, after the Omarchy defaults are loaded:
 
-```text
-PATH=${HOME}/.local/bin:${PATH}
+```lua
+local user_bin = (os.getenv("HOME") or "") .. "/.local/bin"
+hl.env("PATH", user_bin .. ":" .. (os.getenv("PATH") or "/usr/local/bin:/usr/bin"))
 ```
 
-A logout/login is required after changing the graphical-session PATH.
+Apply and validate it, then restart the shell so its child processes inherit
+the corrected path:
+
+```bash
+hyprctl reload
+hyprctl configerrors
+omarchy restart shell
+```
+
+Verify the live Omarchy Shell environment resolves the user launcher before
+the packaged one. The normal Foot font is independent and remains controlled
+by Omarchy's Display panel.
 
 ## 9. Omarchy display text size
 
