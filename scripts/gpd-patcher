@@ -9,6 +9,7 @@ BEGIN_MARK="-- >>> gpd-micropc2-omarchy: %s (managed block, do not edit by hand)
 END_MARK="-- <<< gpd-micropc2-omarchy: %s <<<"
 
 ALL_PATCHES=(display bootmenu greeter scroll screensaver audio)
+OPTIONAL_PATCHES=(denoise)
 
 log()  { printf '  %s\n' "$*"; }
 ok()   { printf '  \033[32m✔\033[0m %s\n' "$*"; }
@@ -58,7 +59,8 @@ is_applied_bootmenu()   { sudo grep -qE '^\s*interface_rotation:\s*90\s*$' /boot
 is_applied_greeter()    { [[ -f /etc/sddm/hyprland.lua && -f /etc/sddm.conf.d/10-wayland.conf ]]; }
 is_applied_scroll()     { grep -qF "gpd-micropc2-omarchy: scroll" ~/.config/hypr/input.lua 2>/dev/null || grep -qF 'touchdevice' ~/.config/hypr/input.lua 2>/dev/null; }
 is_applied_screensaver(){ [[ -f ~/.config/foot/screensaver.ini && -x ~/.local/bin/omarchy-launch-screensaver ]]; }
-is_applied_audio()      { [[ -f ~/.config/pipewire/filter-chain.conf.d/source-rnnoise.conf ]] && systemctl --user is-active --quiet filter-chain.service; }
+is_applied_audio()      { local v; v=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null | awk '{print $2}'); [[ -n "$v" ]] && awk -v v="$v" 'BEGIN{exit !(v <= 0.32)}'; }
+is_applied_denoise()    { [[ -f ~/.config/pipewire/filter-chain.conf.d/source-rnnoise.conf ]] && systemctl --user is-active --quiet filter-chain.service && [[ "$(pactl get-default-source 2>/dev/null)" == "effect_output.rnnoise" ]]; }
 
 apply_display() {
   backup_once ~/.config/hypr/monitors.lua
@@ -184,13 +186,25 @@ remove_screensaver() {
 }
 
 apply_audio() {
-  # Gain: internal-mic clipping came from stacking full ALSA Capture gain on
-  # top of full hardware Mic Boost. This single PipeWire route volume drives
-  # both through a cubic curve — 0.30 lands at ~97% Capture / 0% Boost, the
+  # Internal-mic clipping came from stacking full ALSA Capture gain on top of
+  # full hardware Mic Boost. This single PipeWire route volume drives both
+  # through a cubic curve — 0.30 lands at ~97% Capture / 0% Boost, the
   # highest clean gain before the boost stage (the actual clipper) engages.
+  # This is the whole fix: no software processing, just a sane gain point.
   wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 0.30
   ok "set internal mic gain to a non-clipping level (0% hardware boost)"
+}
 
+remove_audio() {
+  log "no file changes to undo — this patch only sets a PipeWire volume."
+  log "raise it back yourself if you want to, e.g.: wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 0.70"
+}
+
+apply_denoise() {
+  # Optional: a real-time neural denoiser on top of the (already clean, once
+  # `audio` is applied) mic signal. This changes the tone of your voice —
+  # some people prefer it for calls in noisy rooms, some find it thins the
+  # sound out. Off by default; not included in `--apply all`.
   if ! pacman -Qq noise-suppression-for-voice >/dev/null 2>&1; then
     sudo pacman -S --needed --noconfirm noise-suppression-for-voice
   fi
@@ -202,14 +216,14 @@ apply_audio() {
   sleep 1
   pactl set-default-source effect_output.rnnoise 2>/dev/null
   ok "denoised 'Microphone (Denoised)' source is now default input"
+  log "not for everyone — remove any time with: gpd-patcher --remove denoise"
 }
 
-remove_audio() {
+remove_denoise() {
   rm -f ~/.config/pipewire/filter-chain.conf.d/source-rnnoise.conf
   systemctl --user disable --now filter-chain.service >/dev/null 2>&1
   pactl set-default-source alsa_input.pci-0000_00_1f.3.analog-stereo 2>/dev/null
-  ok "disabled mic denoising (corrected gain level is left in place, on purpose —"
-  log "reverting it would bring back the clipping this patch fixed)"
+  ok "back to the plain gain-corrected mic, no denoising"
 }
 
 fix_touchscreen() {
@@ -234,13 +248,16 @@ Usage:
   gpd-patcher --remove <name...|all>
   gpd-patcher --fix touchscreen   recover a dead touchscreen after sleep, no reboot
 
-Patches: ${ALL_PATCHES[*]}
+Patches: ${ALL_PATCHES[*]}  (included in --apply all)
   display      rotate the internal DSI-1 panel to landscape (Hyprland + kernel cmdline)
   bootmenu     rotate the Limine boot menu itself
   greeter      rotate the SDDM login/lock greeter to match
   scroll       natural scrolling + touchscreen transform
   screensaver  fit the stock screensaver on the 7" panel
-  audio        fix internal-mic clipping + add real-time noise suppression
+  audio        fix internal-mic clipping (gain only, no processing)
+
+Optional (NOT included in --apply all — changes the tone of your voice):
+  denoise      real-time RNNoise filter on top of the audio patch
 EOF
 }
 
@@ -248,6 +265,9 @@ status() {
   echo "GPD MicroPC 2 patch status:"
   for p in "${ALL_PATCHES[@]}"; do
     if "is_applied_$p" 2>/dev/null; then ok "$p"; else skip "$p (not applied)"; fi
+  done
+  for p in "${OPTIONAL_PATCHES[@]}"; do
+    if "is_applied_$p" 2>/dev/null; then ok "$p (optional)"; else skip "$p (optional, not applied)"; fi
   done
 }
 
@@ -265,7 +285,7 @@ main() {
       [[ "${names[0]:-}" == "all" ]] && names=("${ALL_PATCHES[@]}")
       [[ ${#names[@]} -eq 0 ]] && { usage; exit 1; }
       for n in "${names[@]}"; do
-        if [[ ! " ${ALL_PATCHES[*]} " =~ " $n " ]]; then err "unknown patch: $n"; continue; fi
+        if [[ ! " ${ALL_PATCHES[*]} ${OPTIONAL_PATCHES[*]} " =~ " $n " ]]; then err "unknown patch: $n"; continue; fi
         echo "→ ${mode#--} $n"
         if [[ "$mode" == "--apply" ]]; then "apply_$n"; else "remove_$n"; fi
       done

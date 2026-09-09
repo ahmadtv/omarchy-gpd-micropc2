@@ -35,7 +35,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/ahmadtv/gpd-micropc2-omarchy
 | 🔐 **Landscape greeter** | SDDM runs its own mini Hyprland compositor that doesn't inherit your user config — this patch gives the login/lock screen its own matching rotation. |
 | 🖱️ **Natural scrolling + touch alignment** | Reversed scroll on the touchpad and external mouse; the touchscreen's transform is explicitly matched to the rotated display so taps land where you touch. |
 | 🔍 **Readable screensaver** | The stock 81-column, 18pt screensaver clips on this display at scale 2; an 8pt user override + launcher fit it properly. |
-| 🎙️ **Clean internal mic** | The internal mic was clipping — full ALSA hardware boost stacked on full capture gain. This patch finds the highest **clean** gain (boost off, capture near max) and adds a real-time RNNoise filter on top for the residual hiss no gain setting fixes. |
+| 🎙️ **Clean internal mic** | The internal mic was clipping — full ALSA hardware boost stacked on full capture gain. This patch finds the highest **clean** gain (boost off, capture near max) and stops there. No software processing — just a sane gain point. |
 
 ## ✅ Already fine out of the box
 
@@ -73,6 +73,17 @@ Each patch is separate and reversible:
 ./scripts/gpd-patcher                   # show what's applied
 ```
 
+`denoise` is separate and **not** included in `all`: it's a real-time RNNoise
+filter layered on top of the `audio` gain fix. The gain fix alone already
+removes the clipping; the denoiser changes the actual tone of your voice on
+top of that, and that's a taste call, not a bug fix — try it, keep it only if
+you like it:
+
+```bash
+./scripts/gpd-patcher --apply denoise
+./scripts/gpd-patcher --remove denoise
+```
+
 Boot-related patches (`display`, `bootmenu`) run `limine-update` for you and print how to verify (`sudo bootctl status --no-pager`). The greeter patch (`greeter`) takes effect on your next logout — restarting SDDM directly ends your current session.
 
 ## 🎙️ Under the hood: the mic fix
@@ -85,7 +96,13 @@ PipeWire drives both amp stages together through one non-linear (cubic) route vo
 wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 0.30   # ~97% Capture, 0% Boost — clean
 ```
 
-That alone kills the clipping/crackling. What's left after that is ordinary small-electret-mic hiss, which this patch also cleans up with a real-time RNNoise filter (`noise-suppression-for-voice`, the same LADSPA plugin family behind most Linux "denoised mic" setups) wired in as a PipeWire filter-chain source, set as the new default input.
+That's the whole `audio` patch, and it's the actual fix — no software
+processing, just a gain point that doesn't clip. The separate, opt-in
+`denoise` patch layers a real-time RNNoise filter (`noise-suppression-for-voice`)
+on top via a PipeWire filter-chain source, for anyone who wants it. It's
+deliberately not part of `--apply all`: a neural denoiser changes the actual
+character of your voice, and whether that trade is worth it is a taste call
+the gain fix by itself doesn't require you to make.
 
 ## 🛟 Safety
 
