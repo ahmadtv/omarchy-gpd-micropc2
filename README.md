@@ -93,7 +93,7 @@ Nothing in the kernel log pointed at buffer underruns — no `xrun`s, no ALSA er
 PipeWire drives both amp stages together through one non-linear (cubic) route volume — there's no separate slider for "boost" vs "capture" once WirePlumber owns the device, and writing to the raw ALSA controls directly gets silently reverted within about a second as WirePlumber re-asserts its own saved route state. The fix has to go through PipeWire's own volume control:
 
 ```bash
-wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 0.30   # ~97% Capture, 0% Boost — clean
+wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 0.35   # 100% Capture, 0% Boost — loudest clean point
 ```
 
 That's the whole `audio` patch, and it's the actual fix — no software

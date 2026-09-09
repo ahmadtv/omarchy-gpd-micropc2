@@ -59,7 +59,7 @@ is_applied_bootmenu()   { sudo grep -qE '^\s*interface_rotation:\s*90\s*$' /boot
 is_applied_greeter()    { [[ -f /etc/sddm/hyprland.lua && -f /etc/sddm.conf.d/10-wayland.conf ]]; }
 is_applied_scroll()     { grep -qF "gpd-micropc2-omarchy: scroll" ~/.config/hypr/input.lua 2>/dev/null || grep -qF 'touchdevice' ~/.config/hypr/input.lua 2>/dev/null; }
 is_applied_screensaver(){ [[ -f ~/.config/foot/screensaver.ini && -x ~/.local/bin/omarchy-launch-screensaver ]]; }
-is_applied_audio()      { local v; v=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null | awk '{print $2}'); [[ -n "$v" ]] && awk -v v="$v" 'BEGIN{exit !(v <= 0.32)}'; }
+is_applied_audio()      { local v; v=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null | awk '{print $2}'); [[ -n "$v" ]] && awk -v v="$v" 'BEGIN{exit !(v <= 0.40)}'; }
 is_applied_denoise()    { [[ -f ~/.config/pipewire/filter-chain.conf.d/source-rnnoise.conf ]] && systemctl --user is-active --quiet filter-chain.service && [[ "$(pactl get-default-source 2>/dev/null)" == "effect_output.rnnoise" ]]; }
 
 apply_display() {
@@ -188,16 +188,16 @@ remove_screensaver() {
 apply_audio() {
   # Internal-mic clipping came from stacking full ALSA Capture gain on top of
   # full hardware Mic Boost. This single PipeWire route volume drives both
-  # through a cubic curve — 0.30 lands at ~97% Capture / 0% Boost, the
-  # highest clean gain before the boost stage (the actual clipper) engages.
+  # through a cubic curve — 0.35 lands at 100% Capture / 0% Boost, the
+  # loudest clean gain before the boost stage (the actual clipper) engages.
   # This is the whole fix: no software processing, just a sane gain point.
-  wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 0.30
+  wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 0.35
   ok "set internal mic gain to a non-clipping level (0% hardware boost)"
 }
 
 remove_audio() {
   log "no file changes to undo — this patch only sets a PipeWire volume."
-  log "raise it back yourself if you want to, e.g.: wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 0.70"
+  log "raise it back yourself if you want to, e.g.: wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 0.70 (will clip)"
 }
 
 apply_denoise() {
