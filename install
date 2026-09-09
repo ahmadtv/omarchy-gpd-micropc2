@@ -1,0 +1,14 @@
+#!/bin/bash
+# Bootstrap for: bash <(curl -fsSL https://raw.githubusercontent.com/ahmadtv/gpd-micropc2-omarchy/main/install)
+set -euo pipefail
+
+REPO_URL="https://github.com/ahmadtv/gpd-micropc2-omarchy"
+DEST="${GPD_PATCHER_DIR:-$HOME/.local/share/gpd-micropc2-omarchy}"
+
+if [[ -d "$DEST/.git" ]]; then
+  git -C "$DEST" pull --ff-only
+else
+  git clone "$REPO_URL" "$DEST"
+fi
+
+exec "$DEST/scripts/gpd-patcher" "$@"
