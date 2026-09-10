@@ -13,7 +13,7 @@
 
 </div>
 
-The MicroPC 2's 7-inch panel is **portrait-native** and reports `1080x1920` — Omarchy, the SDDM greeter, Plymouth, the console, and even the Limine boot menu all need telling, separately, that it's actually run sideways as a 1920×1080 landscape display. Its internal mic ships with enough analog gain stacked on top of itself to clip. **One command. Every change reversible. Nothing touched without asking.**
+The MicroPC 2's 7-inch panel is **portrait-native** and reports `1080x1920` — Omarchy, the SDDM greeter, Plymouth, and the console all need telling, separately, that it's actually run sideways as a 1920×1080 landscape display. Its internal mic ships with enough analog gain stacked on top of itself to clip. **One command. Every change reversible. Nothing touched without asking.**
 
 [Omarchy](https://omarchy.org)'s whole promise is *"we can fix everything."* This points that at a 7-inch handheld.
 
@@ -31,7 +31,6 @@ bash <(curl -fsSL https://raw.githubusercontent.com/ahmadtv/gpd-micropc2-omarchy
 |---|---|
 | 🔄 **Landscape desktop** | The `DSI-1` panel is portrait-native (`1080x1920@60`); Hyprland rotates and scales it into a usable `1200×675` landscape workspace instead of the oversized `960×540` that `scale 2` gives you. |
 | 🥾 **Landscape at boot** | Kernel framebuffer, Plymouth splash, and the console all get `fbcon=rotate:1` and `panel_orientation=right_side_up` via a Limine drop-in — so the boot sequence isn't sideways before Hyprland even starts. |
-| 🧭 **Landscape boot menu** | The Limine boot **menu itself** is rotated 90° so it's readable before any OS has loaded. |
 | 🔐 **Landscape greeter** | SDDM runs its own mini Hyprland compositor that doesn't inherit your user config — this patch gives the login/lock screen its own matching rotation. |
 | 🖱️ **Natural scrolling + touch alignment** | Reversed scroll on the touchpad and external mouse; the touchscreen's transform is explicitly matched to the rotated display so taps land where you touch. |
 | 🔍 **Readable screensaver** | The stock 81-column, 18pt screensaver clips on this display at scale 2; an 8pt user override + launcher fit it properly. |
@@ -67,7 +66,7 @@ cd gpd-micropc2-omarchy && ./scripts/gpd-patcher
 Each patch is separate and reversible:
 
 ```bash
-./scripts/gpd-patcher --apply display bootmenu greeter scroll screensaver audio
+./scripts/gpd-patcher --apply display greeter scroll screensaver audio
 ./scripts/gpd-patcher --apply all       # everything above, in order
 ./scripts/gpd-patcher --remove audio    # undo just one
 ./scripts/gpd-patcher                   # show what's applied
@@ -84,7 +83,7 @@ you like it:
 ./scripts/gpd-patcher --remove denoise
 ```
 
-Boot-related patches (`display`, `bootmenu`) run `limine-update` for you and print how to verify (`sudo bootctl status --no-pager`). The greeter patch (`greeter`) takes effect on your next logout — restarting SDDM directly ends your current session.
+The `display` patch runs `limine-update` for you and prints how to verify (`sudo bootctl status --no-pager`). The greeter patch (`greeter`) takes effect on your next logout — restarting SDDM directly ends your current session.
 
 ## 🎙️ Under the hood: the mic fix
 
