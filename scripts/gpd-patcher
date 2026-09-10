@@ -31,8 +31,8 @@ sudo_backup_once() {
 append_block_once() {
   local file="$1" name="$2" content="$3"
   local begin end
-  printf -v begin "$BEGIN_MARK" "$name"
-  printf -v end "$END_MARK" "$name"
+  printf -v begin -- "$BEGIN_MARK" "$name"
+  printf -v end -- "$END_MARK" "$name"
   mkdir -p "$(dirname "$file")"
   touch "$file"
   if grep -qF "$begin" "$file" 2>/dev/null; then
@@ -46,8 +46,8 @@ append_block_once() {
 remove_block() {
   local file="$1" name="$2"
   local begin end
-  printf -v begin "$BEGIN_MARK" "$name"
-  printf -v end "$END_MARK" "$name"
+  printf -v begin -- "$BEGIN_MARK" "$name"
+  printf -v end -- "$END_MARK" "$name"
   [[ -f "$file" ]] || return 1
   grep -qF "$begin" "$file" || return 1
   awk -v b="$begin" -v e="$end" 'index($0,b)==1{skip=1} !skip{print} index($0,e)==1{skip=0}' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
