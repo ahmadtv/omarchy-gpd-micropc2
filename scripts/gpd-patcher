@@ -8,7 +8,7 @@ CONFIGS="$REPO_ROOT/configs"
 BEGIN_MARK="-- >>> gpd-micropc2-omarchy: %s (managed block, do not edit by hand) >>>"
 END_MARK="-- <<< gpd-micropc2-omarchy: %s <<<"
 
-ALL_PATCHES=(display bootmenu greeter scroll screensaver audio)
+ALL_PATCHES=(display greeter scroll screensaver audio)
 OPTIONAL_PATCHES=(denoise)
 
 log()  { printf '  %s\n' "$*"; }
@@ -55,7 +55,6 @@ remove_block() {
 }
 
 is_applied_display()    { grep -qF "GPD MicroPC 2's built-in panel" ~/.config/hypr/monitors.lua 2>/dev/null && [[ -f /etc/limine-entry-tool.d/display-rotation.conf ]]; }
-is_applied_bootmenu()   { sudo grep -qE '^\s*interface_rotation:\s*90\s*$' /boot/limine.conf 2>/dev/null; }
 is_applied_greeter()    { [[ -f /etc/sddm/hyprland.lua && -f /etc/sddm.conf.d/10-wayland.conf ]]; }
 is_applied_scroll()     { grep -qF "gpd-micropc2-omarchy: scroll" ~/.config/hypr/input.lua 2>/dev/null || grep -qF 'touchdevice' ~/.config/hypr/input.lua 2>/dev/null; }
 is_applied_screensaver(){ [[ -f ~/.config/foot/screensaver.ini && -x ~/.local/bin/omarchy-launch-screensaver ]]; }
@@ -86,24 +85,6 @@ remove_display() {
     || sudo rm -f /etc/limine-entry-tool.d/display-rotation.conf
   sudo limine-update
   ok "removed display-rotation patch and re-ran limine-update"
-}
-
-apply_bootmenu() {
-  sudo test -f /boot/limine.conf || { err "/boot/limine.conf not found"; return 1; }
-  sudo_backup_once /boot/limine.conf
-  if ! sudo grep -qE '^\s*interface_rotation:' /boot/limine.conf; then
-    sudo sed -i '1i interface_rotation: 90' /boot/limine.conf
-  else
-    sudo sed -i 's/^\s*interface_rotation:.*/interface_rotation: 90/' /boot/limine.conf
-  fi
-  sudo limine-update
-  ok "set interface_rotation: 90 in /boot/limine.conf and ran limine-update"
-}
-
-remove_bootmenu() {
-  [[ -f /boot/limine.conf.bak-gpd-patcher-original ]] && sudo cp -a /boot/limine.conf.bak-gpd-patcher-original /boot/limine.conf
-  sudo limine-update
-  ok "restored original /boot/limine.conf"
 }
 
 apply_greeter() {
@@ -250,7 +231,6 @@ Usage:
 
 Patches: ${ALL_PATCHES[*]}  (included in --apply all)
   display      rotate the internal DSI-1 panel to landscape (Hyprland + kernel cmdline)
-  bootmenu     rotate the Limine boot menu itself
   greeter      rotate the SDDM login/lock greeter to match
   scroll       natural scrolling + touchscreen transform
   screensaver  fit the stock screensaver on the 7" panel
