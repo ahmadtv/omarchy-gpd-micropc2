@@ -35,7 +35,7 @@ append_block_once() {
   printf -v end -- "$END_MARK" "$name"
   mkdir -p "$(dirname "$file")"
   touch "$file"
-  if grep -qF "$begin" "$file" 2>/dev/null; then
+  if grep -qF -- "$begin" "$file" 2>/dev/null; then
     return 1
   fi
   backup_once "$file"
@@ -49,7 +49,7 @@ remove_block() {
   printf -v begin -- "$BEGIN_MARK" "$name"
   printf -v end -- "$END_MARK" "$name"
   [[ -f "$file" ]] || return 1
-  grep -qF "$begin" "$file" || return 1
+  grep -qF -- "$begin" "$file" || return 1
   awk -v b="$begin" -v e="$end" 'index($0,b)==1{skip=1} !skip{print} index($0,e)==1{skip=0}' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
   return 0
 }
@@ -62,9 +62,12 @@ is_applied_audio()      { local v; v=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2
 is_applied_denoise()    { [[ -f ~/.config/pipewire/filter-chain.conf.d/source-rnnoise.conf ]] && systemctl --user is-active --quiet filter-chain.service && [[ "$(pactl get-default-source 2>/dev/null)" == "effect_output.rnnoise" ]]; }
 
 apply_display() {
-  backup_once ~/.config/hypr/monitors.lua
-  cp "$CONFIGS/hypr/monitors.lua" ~/.config/hypr/monitors.lua
-  ok "wrote ~/.config/hypr/monitors.lua (rotated DSI-1 landscape, scale 1.6)"
+  # Only the DSI-1 rotation is added; the scale stays whatever you set in monitors.lua.
+  if grep -qF "GPD MicroPC 2's built-in panel" ~/.config/hypr/monitors.lua 2>/dev/null; then
+    skip "DSI-1 rotation already in ~/.config/hypr/monitors.lua"
+  elif append_block_once ~/.config/hypr/monitors.lua display "$(cat "$CONFIGS/hypr/monitors-dsi1.lua")"; then
+    ok "added DSI-1 landscape rotation to ~/.config/hypr/monitors.lua (scale left as you set it)"
+  fi
 
   sudo mkdir -p /etc/limine-entry-tool.d
   sudo_backup_once /etc/limine-entry-tool.d/display-rotation.conf
@@ -79,7 +82,12 @@ apply_display() {
 }
 
 remove_display() {
-  [[ -f ~/.config/hypr/monitors.lua.bak-gpd-patcher-original ]] && cp -a ~/.config/hypr/monitors.lua.bak-gpd-patcher-original ~/.config/hypr/monitors.lua && ok "restored original monitors.lua"
+  if remove_block ~/.config/hypr/monitors.lua display; then
+    ok "removed DSI-1 rotation block from monitors.lua"
+  elif grep -qF "GPD MicroPC 2's built-in panel" ~/.config/hypr/monitors.lua 2>/dev/null; then
+    sed -i "/GPD MicroPC 2's built-in panel/d; /output = \"DSI-1\".*transform = 3/d" ~/.config/hypr/monitors.lua
+    ok "removed DSI-1 rotation from monitors.lua"
+  fi
   [[ -f /etc/limine-entry-tool.d/display-rotation.conf.bak-gpd-patcher-original ]] \
     && sudo cp -a /etc/limine-entry-tool.d/display-rotation.conf.bak-gpd-patcher-original /etc/limine-entry-tool.d/display-rotation.conf \
     || sudo rm -f /etc/limine-entry-tool.d/display-rotation.conf

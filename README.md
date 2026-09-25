@@ -29,7 +29,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/ahmadtv/gpd-micropc2-omarchy
 
 | | |
 |---|---|
-| 🔄 **Landscape desktop** | The `DSI-1` panel is portrait-native (`1080x1920@60`); Hyprland rotates and scales it into a usable `1200×675` landscape workspace instead of the oversized `960×540` that `scale 2` gives you. |
+| 🔄 **Landscape desktop** | The `DSI-1` panel is portrait-native (`1080x1920@60`); Hyprland rotates it into landscape. The scale is left to you — the patch only adds the `DSI-1` rotation to `monitors.lua` and follows whatever `omarchy_monitor_scale` you set (`1.6` gives a `1200×675` workspace, `2` gives `960×540`). |
 | 🥾 **Landscape at boot** | Kernel framebuffer, Plymouth splash, and the console all get `fbcon=rotate:1` and `panel_orientation=right_side_up` via a Limine drop-in — so the boot sequence isn't sideways before Hyprland even starts. |
 | 🔐 **Landscape greeter** | SDDM runs its own mini Hyprland compositor that doesn't inherit your user config — this patch gives the login/lock screen its own matching rotation. |
 | 🖱️ **Natural scrolling + touch alignment** | Reversed scroll on the touchpad and external mouse; the touchscreen's transform is explicitly matched to the rotated display so taps land where you touch. |
