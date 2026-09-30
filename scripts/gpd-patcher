@@ -8,7 +8,7 @@ CONFIGS="$REPO_ROOT/configs"
 BEGIN_MARK="-- >>> gpd-micropc2-omarchy: %s (managed block, do not edit by hand) >>>"
 END_MARK="-- <<< gpd-micropc2-omarchy: %s <<<"
 
-ALL_PATCHES=(display greeter scroll screensaver audio)
+ALL_PATCHES=(display greeter scroll screensaver audio parsec)
 OPTIONAL_PATCHES=(denoise)
 
 log()  { printf '  %s\n' "$*"; }
@@ -59,6 +59,7 @@ is_applied_greeter()    { [[ -f /etc/sddm/hyprland.lua && -f /etc/sddm.conf.d/10
 is_applied_scroll()     { grep -qF "gpd-micropc2-omarchy: scroll" ~/.config/hypr/input.lua 2>/dev/null || grep -qF 'touchdevice' ~/.config/hypr/input.lua 2>/dev/null; }
 is_applied_screensaver(){ [[ -f ~/.config/foot/screensaver.ini && -x ~/.local/bin/omarchy-launch-screensaver ]]; }
 is_applied_audio()      { local v; v=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null | awk '{print $2}'); [[ -n "$v" ]] && awk -v v="$v" 'BEGIN{exit !(v <= 0.40)}'; }
+is_applied_parsec()     { grep -qF "parsecd-no-touch" ~/.local/share/applications/parsecd.desktop 2>/dev/null && [[ -x ~/.local/bin/parsecd-no-touch ]]; }
 is_applied_denoise()    { [[ -f ~/.config/pipewire/filter-chain.conf.d/source-rnnoise.conf ]] && systemctl --user is-active --quiet filter-chain.service && [[ "$(pactl get-default-source 2>/dev/null)" == "effect_output.rnnoise" ]]; }
 
 apply_display() {
@@ -215,6 +216,34 @@ remove_denoise() {
   ok "back to the plain gain-corrected mic, no denoising"
 }
 
+apply_parsec() {
+  # Parsec reads the touchpad and touchscreen as joysticks whose resting axis is
+  # off-centre, so its in-stream menu scrolls on its own. See configs/bin/parsecd-no-touch.
+  local stock=/usr/share/applications/parsecd.desktop
+  if [[ ! -f "$stock" ]]; then skip "Parsec isn't installed ($stock missing), nothing to do"; return; fi
+  if ! command -v bwrap >/dev/null; then err "needs bubblewrap: sudo pacman -S bubblewrap"; return; fi
+  mkdir -p ~/.local/bin ~/.local/share/applications
+  cp "$CONFIGS/bin/parsecd-no-touch" ~/.local/bin/parsecd-no-touch
+  chmod +x ~/.local/bin/parsecd-no-touch
+  backup_once ~/.local/share/applications/parsecd.desktop
+  sed "s#^Exec=.*#Exec=$HOME/.local/bin/parsecd-no-touch %u#" "$stock" > ~/.local/share/applications/parsecd.desktop
+  update-desktop-database ~/.local/share/applications >/dev/null 2>&1
+  ok "Parsec now launches with touchpads/touchscreens hidden from its controller scan"
+  log "quit and reopen Parsec for it to take effect"
+}
+
+remove_parsec() {
+  local user_desktop=~/.local/share/applications/parsecd.desktop
+  rm -f ~/.local/bin/parsecd-no-touch
+  if [[ -f "$user_desktop.bak-gpd-patcher-original" ]]; then
+    mv "$user_desktop.bak-gpd-patcher-original" "$user_desktop"
+  else
+    rm -f "$user_desktop"
+  fi
+  update-desktop-database ~/.local/share/applications >/dev/null 2>&1
+  ok "Parsec back on the stock launcher (reopen it to take effect)"
+}
+
 fix_touchscreen() {
   local dev="i2c-ILTP7807:00"
   if ! journalctl -b -k 2>/dev/null | grep -qi ILTP7807; then
@@ -243,6 +272,7 @@ Patches: ${ALL_PATCHES[*]}  (included in --apply all)
   scroll       natural scrolling + touchscreen transform
   screensaver  fit the stock screensaver on the 7" panel
   audio        fix internal-mic clipping (gain only, no processing)
+  parsec       stop Parsec's in-stream menu scrolling by itself (touch devices misread as joysticks)
 
 Optional (NOT included in --apply all — changes the tone of your voice):
   denoise      real-time RNNoise filter on top of the audio patch

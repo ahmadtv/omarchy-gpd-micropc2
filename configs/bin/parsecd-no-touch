@@ -1,0 +1,25 @@
+#!/bin/sh
+# Launch Parsec with touchpads and touchscreens hidden from its controller scan.
+#
+# Parsec scans /dev/input for game controllers and picks up any device with
+# absolute X/Y axes. On the GPD MicroPC 2 that is the ALPS touchpad and the
+# ILITEK touchscreen. Their resting ABS_Y sits off-centre (the touchpad keeps
+# the last finger position, the touchscreen reports 0), which Parsec reads as a
+# stick held up or down, so its in-stream menu scrolls on its own.
+#
+# Each matching event node is replaced with /dev/null inside a bubblewrap
+# sandbox, for Parsec only. Parsec still receives the touchpad and touchscreen
+# as normal pointer input through the compositor, and real game controllers
+# stay visible to it.
+set -eu
+
+mask=""
+for node in /dev/input/event*; do
+  [ -e "$node" ] || continue
+  if udevadm info -q property -n "$node" 2>/dev/null | grep -qE '^ID_INPUT_(TOUCHPAD|TOUCHSCREEN)=1$'; then
+    mask="$mask --ro-bind /dev/null $node"
+  fi
+done
+
+# shellcheck disable=SC2086  # $mask is a word list of bwrap arguments
+exec bwrap --dev-bind / / $mask /usr/bin/parsecd "$@"

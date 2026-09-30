@@ -35,6 +35,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/ahmadtv/gpd-micropc2-omarchy
 | 🖱️ **Natural scrolling + touch alignment** | Reversed scroll on the touchpad and external mouse; the touchscreen's transform is explicitly matched to the rotated display so taps land where you touch. |
 | 🔍 **Readable screensaver** | The stock 81-column, 18pt screensaver clips on this display at scale 2; an 8pt user override + launcher fit it properly. |
 | 🎙️ **Clean internal mic** | The internal mic was clipping — full ALSA hardware boost stacked on full capture gain. This patch finds the highest **clean** gain (boost off, capture near max) and stops there. No software processing — just a sane gain point. |
+| 🎮 **Parsec menu that stays put** | Parsec scans raw input devices for game controllers and picks up anything with absolute X/Y axes — here, the touchpad and the touchscreen. Their resting Y axis sits off-centre (the touchpad keeps your last finger position, the touchscreen reports 0), so Parsec sees a stick held up or down and its in-stream menu scrolls by itself. The patch launches Parsec in a `bubblewrap` sandbox that hides only touchpads and touchscreens from that scan. They still work as normal pointers inside Parsec, and real game controllers stay visible to it. Skipped if Parsec isn't installed. |
 
 ## ✅ Already fine out of the box
 
@@ -66,7 +67,7 @@ cd gpd-micropc2-omarchy && ./scripts/gpd-patcher
 Each patch is separate and reversible:
 
 ```bash
-./scripts/gpd-patcher --apply display greeter scroll screensaver audio
+./scripts/gpd-patcher --apply display greeter scroll screensaver audio parsec
 ./scripts/gpd-patcher --apply all       # everything above, in order
 ./scripts/gpd-patcher --remove audio    # undo just one
 ./scripts/gpd-patcher                   # show what's applied
