@@ -9,7 +9,7 @@ BEGIN_MARK="-- >>> gpd-micropc2-omarchy: %s (managed block, do not edit by hand)
 END_MARK="-- <<< gpd-micropc2-omarchy: %s <<<"
 
 ALL_PATCHES=(display greeter scroll screensaver audio parsec)
-OPTIONAL_PATCHES=(denoise)
+OPTIONAL_PATCHES=(denoise wifi_cast)
 
 log()  { printf '  %s\n' "$*"; }
 ok()   { printf '  \033[32m✔\033[0m %s\n' "$*"; }
@@ -61,6 +61,26 @@ is_applied_screensaver(){ [[ -f ~/.config/foot/screensaver.ini && -x ~/.local/bi
 is_applied_audio()      { local v; v=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null | awk '{print $2}'); [[ -n "$v" ]] && awk -v v="$v" 'BEGIN{exit !(v <= 0.40)}'; }
 is_applied_parsec()     { grep -qF "parsecd-no-touch" ~/.local/share/applications/parsecd.desktop 2>/dev/null && [[ -x ~/.local/bin/parsecd-no-touch ]]; }
 is_applied_denoise()    { [[ -f ~/.config/pipewire/filter-chain.conf.d/source-rnnoise.conf ]] && systemctl --user is-active --quiet filter-chain.service && [[ "$(pactl get-default-source 2>/dev/null)" == "effect_output.rnnoise" ]]; }
+
+# Keep this optional: it trades Wi-Fi 6 capability for reliable Wi-Fi Direct.
+is_applied_wifi_cast() {
+  cmp -s "$CONFIGS/modprobe/90-gpd-miracast.conf" /etc/modprobe.d/90-gpd-miracast.conf &&
+    [[ $(cat /sys/module/iwlwifi/parameters/disable_11ax 2>/dev/null) == Y ]]
+}
+apply_wifi_cast() {
+  sudo_backup_once /etc/modprobe.d/90-gpd-miracast.conf
+  sudo install -Dm644 "$CONFIGS/modprobe/90-gpd-miracast.conf" /etc/modprobe.d/90-gpd-miracast.conf
+  ok "Wi-Fi Direct compatibility saved; takes effect after Wi-Fi driver reload or reboot"
+}
+remove_wifi_cast() {
+  local file=/etc/modprobe.d/90-gpd-miracast.conf
+  if [[ -f $file.bak-gpd-patcher-original ]]; then
+    sudo cp -a "$file.bak-gpd-patcher-original" "$file"
+  elif [[ -f $file ]]; then
+    sudo unlink "$file"
+  fi
+  ok "Wi-Fi 6 defaults restored for the next driver reload or reboot"
+}
 
 apply_display() {
   # Only the DSI-1 rotation is added; the scale stays whatever you set in monitors.lua.
@@ -274,8 +294,9 @@ Patches: ${ALL_PATCHES[*]}  (included in --apply all)
   audio        fix internal-mic clipping (gain only, no processing)
   parsec       stop Parsec's in-stream menu scrolling by itself (touch devices misread as joysticks)
 
-Optional (NOT included in --apply all — changes the tone of your voice):
+Optional (NOT included in --apply all):
   denoise      real-time RNNoise filter on top of the audio patch
+  wifi_cast    AX201 Wi-Fi 5 compatibility for stable Miracast (disables Wi-Fi 6)
 EOF
 }
 

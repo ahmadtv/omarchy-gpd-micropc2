@@ -131,3 +131,14 @@ Noise suppression via [RNNoise](https://github.com/xiph/rnnoise) (Jean-Marc Vali
 ---
 
 _Omarchy's promise is "we can fix everything." This is one more thing, fixed._
+
+### Optional AX201 Miracast compatibility
+
+On kernel 7.2.15 with AX201 firmware 89.d2579d43.0, starting Wi-Fi Direct
+repeatedly produced `NMI_INTERRUPT_UMAC_FATAL` / `LINK_CONFIG_CMD` firmware
+resets. `wifi_cast` sets `iwlwifi disable_11ax=1`. The adapter still uses
+5 GHz 802.11ac, and Miracast was verified at 1920×1080p60 with VA-API H.264.
+It is optional because Wi-Fi 6 (HE) is disabled while the workaround is on.
+
+Use `gpd-patcher --apply wifi_cast` to save it, or `--remove wifi_cast` to
+restore defaults. Changes take effect after a driver reload or reboot.
